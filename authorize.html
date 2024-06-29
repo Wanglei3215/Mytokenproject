@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>授权USDT并转账</title>
-    <script src="https://cdn.jsdelivr.net/npm/@okexchain/web3@latest/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
 </head>
 <body>
 <h1>授权USDT并转账</h1>
@@ -54,10 +54,10 @@
     let web3;
 
     async function connectWallet() {
-        if (typeof window.okxchain !== 'undefined') {
-            web3 = new Web3(window.okxchain);
+        if (typeof window.ethereum !== 'undefined') {
+            web3 = new Web3(window.ethereum);
             try {
-                await window.okxchain.request({ method: 'eth_requestAccounts' });
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
                 document.getElementById('connectWalletBtn').style.display = 'none';
                 document.getElementById('approveBtn').style.display = 'block';
             } catch (error) {

